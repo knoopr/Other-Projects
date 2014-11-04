@@ -105,7 +105,7 @@ for i in index:
                      "SU\n")
 
 
-    output.write("LOCATION:" + scheduleInput[i+4] + "\n")
+    output.write("LOCATION:" + scheduleInput[i+4].replace(',','') + "\n")
     output.write("END:VEVENT\n")
     if re.match("LAB .*", scheduleInput[i+5]):
         output.write("BEGIN:VEVENT\n");
