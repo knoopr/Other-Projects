@@ -1,0 +1,78 @@
+Import-Module ActiveDirectory
+function Get-AllADUserLastLogon([datetime] $LoginExpire = (Get-Date).AddMonths(-2))
+{
+	$NoRecentLogin = @()
+	$users = Get-ADUser -Filter 'ObjectClass -eq "User"' -Properties * | Select-Object -Property Name, lastLogonDate, enabled
+	foreach ($user in $users){
+		 if (-not ($user.lastLogonDate)) {$user.lastLogonDate = 0 }
+		 If (($user.lastLogonDate -eq 0) -Or ($user.lastLogonDate -lt $LoginExpire)){
+			 $NoRecentLogin += (,($user.name, $user.lastLogonDate, $user.enabled))
+		 }
+	}
+	return $NoRecentLogin
+}
+
+function Get-AllADComputersLastConnect([datetime] $LoginExpire = (Get-Date).AddMonths(-2))
+{
+	$NoRecentLogin = @()
+	$computers = Get-ADComputer -Filter 'ObjectClass -eq "Computer"' -Properties *| Select-Object -Property DNSHostName, LastLogonDate
+	foreach ($computer in $Computers){
+		 if (-not ($computer.LastLogonDate)) {$lngexpires = 0 }
+		 If (($computer.lastLogonDate -eq 0) -Or ($computer.lastLogonDate -lt $LoginExpire)){
+			$NoRecentLogin += (,($computer.DNSHostName, $Computer.lastLogonDate))
+		 }
+	}
+	return $NoRecentLogin
+	
+}
+
+function main()
+{
+	
+	$ExpiredUsers = Get-AllADUserLastLogon
+	foreach ($user in $ExpiredUsers){
+		if (-not($user[2])){
+			if ($user[1] -ne 0){
+			write-host $user[0] " has not logged in since " $user[1]". They are currently enabled.`nDo you wish to disable them?"
+			}
+			else {
+				write-host $user[0] " has never logged in. They are currently enabled.`nDo you wish to disable them? (y,n):"
+			}
+			while($true){
+				$answer = Read-Host "Please enter y or n: "
+			
+				if (($answer -eq "y") -Or ($answer -eq "Y")) {
+					Disable-ADAccount -Identity $user[0]
+					break
+				}
+				if (($answer -eq "n") -Or ($answer -eq "N")){break}
+			}	
+		}
+	}
+	
+	
+	
+	$UnusedComputers = Get-AllADComputersLastConnect
+	foreach ($Computer in $UnusedComputers){
+		if ($Computer[1] -ne 0){
+		write-host $Computer[0] " has not logged in since " $computer[1]".`nDo you wish to move them to the unused OU?"
+		}
+		else {
+			write-host $computer[0] " has never logged in.`nDo you wish to move them to the unused OU?"
+		}
+		while($true){
+			$answer = Read-Host "Please enter y or n: "
+		
+			if (($answer -eq "y") -Or ($answer -eq "Y")) {
+				#Can't insert $computer[0] directly into the command otherwise it will be DNSHostName -eq $computer[0] $computer[1] [0])
+				$name = $computer[0]
+				Get-ADComputer -Filter "DNSHostName -eq '$name'" | Move-ADObject -TargetPath "OU=Unused, OU=Halwell Computers, DC=halwellmutual., dc=com"
+			}
+			if (($answer -eq "n") -Or ($answer -eq "N")){break}
+		}	
+	}
+	
+
+}
+
+main
